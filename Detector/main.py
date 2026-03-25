@@ -5,7 +5,9 @@ import boto3
 from ec2_checks import (
     get_all_regions,
     get_all_instances,
-    check_open_security_groups
+    check_open_security_groups,
+    check_public_instance_exposure,
+    check_ebs_instance_encryption_status
 )
 
 def load_aws_credentials():
@@ -45,7 +47,9 @@ def run_checks(session):
         all_instances = get_all_instances(ec2_client)
 
         for instance in all_instances:
-            check_open_security_groups(ec2_client, instance, region)
+            #check_open_security_groups(ec2_client, instance, region)
+            #check_public_instance_exposure(ec2_client, instance, region)
+            check_ebs_instance_encryption_status(ec2_client, instance, region)
     
 
 def main():

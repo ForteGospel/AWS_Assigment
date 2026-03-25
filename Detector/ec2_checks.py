@@ -46,6 +46,7 @@ def check_open_security_groups(ec2_client, instance, region):
 
 	for group in instance.get("SecurityGroups"):
 		groupId = group.get("GroupId")
+
 		try:
 			response = ec2_client.describe_security_groups(GroupIds = [groupId])
 			securityGroups = response.get("SecurityGroups")
@@ -111,4 +112,113 @@ def check_open_security_groups(ec2_client, instance, region):
 		except Exception as e:
 			print(f"[ERROR] Unexpected error while retrieving EC2 instances: {e}")
 
+	return findings
+
+def check_public_instance_exposure(ec2_client, instance, region):
+	# Check if the instance is actually publicly exposed
+    
+	findings = []
+
+	instanceId = instance.get("InstanceId")
+	publicIp = instance.get("PublicIpAddress")
+
+	if not publicIp:
+		return findings
+
+	internetExposed = False
+	exposedPorts = []
+
+	for group in instance.get("SecurityGroups"):
+		groupId = group.get("GroupId")
+
+		try:
+			response = ec2_client.describe_security_groups(GroupIds=[groupId])
+			securityGroups = response.get("SecurityGroups")
+
+			for securityGroup in securityGroups:
+				for permission in securityGroup.get("IpPermissions"):
+					fromPort = permission.get("FromPort")
+					toPort = permission.get("ToPort")
+
+					for ipRange in permission.get("IpRanges"):
+						cidr = ipRange.get("CidrIp")
+
+						if cidr == "0.0.0.0/0":
+							internetExposed = True
+
+							if fromPort is not None and toPort is not None:
+								exposedPorts.append(f"{fromPort} - {toPort}")
+							else:
+								exposedPorts.append("all")
+
+		except ClientError as e:
+			print(f"[ERROR] Failed to retrieve EC2 instances: {e}")
+
+		except Exception as e:
+			print(f"[ERROR] Unexpected error while retrieving EC2 instances: {e}")
+
+	if internetExposed:
+		findings.append(
+			{
+				"severity": "HIGH",
+                "resource": f"{instanceId} ({region})",
+                "issue": "Publicly accessible EC2 instance",
+                "details": (
+                    f"Instance has public IP {publicIp} and is reachable from the internet "
+                    f"(open ports: {', '.join(set(exposedPorts))})."
+                ),
+                "remediation": (
+                    "Move instance to a private subnet or restrict inbound access "
+                    "to trusted IP ranges only."
+                ),
+			}
+		)
+
+	return findings
+
+def check_ebs_instance_encryption_status(ec2_client, instance, region):
+	findings = []
+
+	instanceId = instance.get("InstanceId")
+
+	for block in instance.get("BlockDeviceMappings"):
+		ebs = block.get("Ebs")
+		if not ebs:
+			continue
+		
+		volumeId = ebs.get("VolumeId")
+		if not volumeId:
+			continue
+
+		try:
+			response = ec2_client.describe_volumes(VolumeIds = [volumeId])
+			volumes = response.get("Volumes")
+			if not volumes:
+				continue
+
+			encryptionStatus = volumes[0].get("Encrypted")
+
+			if encryptionStatus == False:
+				findings.append(
+				{
+					"severity": "MEDIUM",
+					"resource": f"{instanceId} ({region})",
+					"issue": "Unencrypted EBS volume attached to instanc",
+					"details": (
+						f"Instance {instanceId} has an attached EBS volume"
+						f"({volumeId}) that is not encrypted at rest."
+					),
+					"remediation": (
+						"Enable EBS encryption for volumes and snapshots, and enforce "
+						"encryption by default for new EBS volumes."
+					),
+				}
+			)
+
+		except ClientError as e:
+			print(f"[ERROR] Failed to retrieve EC2 instances: {e}")
+
+		except Exception as e:
+			print(f"[ERROR] Unexpected error while retrieving EC2 instances: {e}")
+	
 	return findings
