@@ -43,6 +43,22 @@ Identifies EC2 instances with attached EBS volumes that are not encrypted at res
 4. Run detection checks per instance
 5. Output findings
 
+## Output Example
+Severity: HIGH
+Resource: i-0fc995db07c0bfeea (eu-north-1)
+Issue: Security group allows all traffic from 0.0.0.0/0
+Details: Instance i-0fc995db07c0bfeea is associated with security group sg-07969a3eafa8c854d (launch-wizard-1) that allows all inbound traffic from the public internet.
+Remediation: Restrict inbound access to trusted IP ranges only and avoid using 0.0.0.0/0 for unrestricted access.
+---------------------------------------------------------
+
+
+Severity: HIGH
+Resource: i-0fc995db07c0bfeea (eu-north-1)
+Issue: Security group allows SSH from 0.0.0.0/0
+Details: Instance i-0fc995db07c0bfeea is associated with security group sg-07969a3eafa8c854d (launch-wizard-1) exposing port 22 to the public internet.
+Remediation: Restrict port 22 access to trusted IP ranges only, or use a bastion host / AWS Systems Manager Session Manager.
+---------------------------------------------------------
+
 ## TODO
 
 ### Organization-Level Scanning
