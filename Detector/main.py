@@ -76,8 +76,8 @@ def main():
         findings = run_checks(session)
         print_findings(findings)
 
-    except:
-        None
+    except Exception as e:
+        print(f"[ERROR] {e}")
 
 if __name__ == "__main__":
     main()
