@@ -40,7 +40,7 @@ def check_open_security_groups(instance, region, worldOpenGroups):
 			if ipProtocol == "-1":
 				findings.append(
 					{
-						"severity": "HIGH",
+							"severity": "HIGH",
 							"resource": f"{instanceId} ({region})",
 							"issue": "Security group allows all traffic from 0.0.0.0/0",
 							"details": (
@@ -114,7 +114,6 @@ def check_public_instance_exposure(instance, region, worldOpenGroups):
                 ),
 			}
 		)
-	print (findings)
 	return findings
 
 def check_ebs_instance_encryption_status(instance, region, allVolumes):
@@ -156,7 +155,6 @@ def check_ebs_instance_encryption_status(instance, region, allVolumes):
 				}
 			)
 	
-	print (findings)
 	return findings
 
 def check_imdsv1_enabled(instance, region):

@@ -1,5 +1,11 @@
 import boto3
 
+def create_session(access_key, secret_key):
+    return boto3.Session(
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+    )
+
 def get_all_regions(session):
 	# Get all enabled regions in the account #
 	ec2 = session.client("ec2", region_name = "eu-north-1")

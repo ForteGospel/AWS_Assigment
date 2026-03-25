@@ -11,6 +11,7 @@ from ec2_checks import (
 )
 
 from ec2_utils import(
+    create_session,
     get_all_regions,
     get_all_instances,
     get_all_volumes
@@ -38,12 +39,6 @@ def load_aws_credentials():
 
     return access_key, secret_key
 
-def create_session(access_key, secret_key):
-    return boto3.Session(
-        aws_access_key_id=access_key,
-        aws_secret_access_key=secret_key,
-    )
-
 def run_checks(session):
     findings = []
     all_regions = get_all_regions(session)
@@ -61,7 +56,16 @@ def run_checks(session):
             findings.extend(check_ebs_instance_encryption_status(instance, region, allVolumes))
             findings.extend(check_imdsv1_enabled(instance, region))
 
-    [print(x) for x in findings]
+    return findings
+
+def print_findings(findings):
+    for find in findings:
+        print(f"Severity: {find["severity"]}")
+        print(f"Resource: {find["resource"]}")
+        print(f"Issue: {find["issue"]}")
+        print(f"Details: {find["details"]}")
+        print(f"Remediation: {find["remediation"]}")
+        print("---------------------------------------------------------\n\n")
     
 
 def main():
@@ -70,7 +74,7 @@ def main():
         session = create_session(access_key, secret_key)
 
         findings = run_checks(session)
-
+        print_findings(findings)
 
     except:
         None
