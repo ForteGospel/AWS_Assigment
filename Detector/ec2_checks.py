@@ -1,6 +1,12 @@
 import boto3
 from botocore.exceptions import ClientError
 
+from ec2_utils import(
+    get_all_instances,
+	get_all_security_groups,
+	get_all_volumes
+)
+
 HIGH_RISK_PORTS = {
     22: "SSH",
     3389: "RDP",
@@ -8,37 +14,7 @@ HIGH_RISK_PORTS = {
     5432: "PostgreSQL",
 }
 
-def get_all_regions(session):
-	# Get all enabled regions in the account #
-	ec2 = session.client("ec2", region_name = "eu-north-1")
-
-	response = ec2.describe_regions(AllRegions = False)
-
-	regions = [region["RegionName"] for region in response.get("Regions")]
-
-	return regions
-
-def get_all_instances(ec2_client):
-	# Get All Instances in region
-	instances = []
-
-	try:
-		paginator = ec2_client.get_paginator("describe_instances")
-
-		for page in paginator.paginate():
-			for reservation in page.get("Reservations"):
-				for instance in reservation.get("Instances"):
-					instances.append(instance)
-
-	except ClientError as e:
-		print(f"[ERROR] Failed to retrieve EC2 instances: {e}")
-
-	except Exception as e:
-		print(f"[ERROR] Unexpected error while retrieving EC2 instances: {e}")
-
-	return instances
-
-def check_open_security_groups(ec2_client, instance, region):
+def check_open_security_groups(instance, region, worldOpenGroups):
 	# check for security group with 0.0.0.0/0 to high risk ports
 
 	findings = []
@@ -47,74 +23,63 @@ def check_open_security_groups(ec2_client, instance, region):
 	for group in instance.get("SecurityGroups"):
 		groupId = group.get("GroupId")
 
-		try:
-			response = ec2_client.describe_security_groups(GroupIds = [groupId])
-			securityGroups = response.get("SecurityGroups")
+		if groupId not in worldOpenGroups:
+			continue
 
-			for securityGroup in securityGroups:
-				groupName = securityGroup.get("GroupName")
+		group = worldOpenGroups[groupId]
+		groupName = group.get("GroupName")
 
-				for permission in securityGroup.get("IpPermissions"):
-					fromPort = permission.get("FromPort")
-					toPort = permission.get("ToPort")
-					ipProtocol = permission.get("IpProtocol")
+		for permission in group.get("IpPermissions"):
+			ipProtocol = permission.get("IpProtocol")
+			fromPort = permission.get("FromPort")
+			toPort = permission.get("ToPort")
 
+			if ipProtocol not in ["tcp", "udp", "-1"]:
+				continue
+			
+			if ipProtocol == "-1":
+				findings.append(
+					{
+						"severity": "HIGH",
+							"resource": f"{instanceId} ({region})",
+							"issue": "Security group allows all traffic from 0.0.0.0/0",
+							"details": (
+								f"Instance {instanceId} is associated with security group "
+								f"{groupId} ({groupName}) that allows all inbound traffic "
+								f"from the public internet."
+							),
+							"remediation": (
+								"Restrict inbound access to trusted IP ranges only and avoid "
+								"using 0.0.0.0/0 for unrestricted access."
+							),
+					}
+				)
+				continue
 
-					if ipProtocol not in ["tcp", "udp", "-1"]:
-						continue
-
-					for ipRange in permission.get("IpRanges"):
-						cidr = ipRange.get("CidrIp")
-
-						if cidr != "0.0.0.0/0":
-							continue
-
-						if ipProtocol == "-1":
-							findings.append(
-								{
-                                    "severity": "HIGH",
-                                    "resource": f"{instanceId} ({region})",
-                                    "issue": "Security group allows all traffic from 0.0.0.0/0",
-                                    "details": (
-                                        f"Instance {instanceId} is associated with security group "
-                                        f"{groupId} ({groupName}) that allows all protocols/ports "
-                                        f"from the public internet."
-                                    ),
-                                    "remediation": (
-                                        "Restrict inbound access to trusted IP ranges only and avoid "
-                                        "allowing all traffic from 0.0.0.0/0."
-                                    ),
-                                }
-							)
-
-						for port, serviceName in HIGH_RISK_PORTS.items():
-							if fromPort == port and toPort == port:
-								findings.append(
-									{
-                                        "severity": "HIGH",
-                                        "resource": f"{instanceId} ({region})",
-                                        "issue": f"Security group allows {serviceName} from 0.0.0.0/0",
-                                        "details": (
-                                            f"Instance {instanceId} is associated with security group "
-                                            f"{groupId} ({groupName}) exposing port {port} "
-                                            f"to the public internet."
-                                        ),
-                                        "remediation": (
-                                            f"Restrict port {port} access to trusted IP ranges only, "
-                                            "or use a bastion host / AWS Systems Manager Session Manager."
-                                        ),
-                                    }
-								)
-
-		except ClientError as e:
-			print(f"[ERROR] Failed to retrieve EC2 instances: {e}")
-
-		except Exception as e:
-			print(f"[ERROR] Unexpected error while retrieving EC2 instances: {e}")
+			print (fromPort)
+			for port, serviceName in HIGH_RISK_PORTS.items():
+				print (serviceName)
+				if fromPort <= port <= toPort:
+					findings.append(
+						{
+							"severity": "HIGH",
+							"resource": f"{instanceId} ({region})",
+							"issue": f"Security group allows {serviceName} from 0.0.0.0/0",
+							"details": (
+								f"Instance {instanceId} is associated with security group "
+								f"{groupId} ({groupName}) exposing port {port} "
+								f"to the public internet."
+							),
+							"remediation": (
+								f"Restrict port {port} access to trusted IP ranges only, "
+								"or use a bastion host / AWS Systems Manager Session Manager."
+							),
+						}
+					)
 
 	return findings
 
-def check_public_instance_exposure(ec2_client, instance, region):
+def check_public_instance_exposure(instance, region, worldOpenGroups):
 	# Check if the instance is actually publicly exposed
     
 	findings = []
@@ -125,58 +90,38 @@ def check_public_instance_exposure(ec2_client, instance, region):
 	if not publicIp:
 		return findings
 
-	internetExposed = False
-	exposedPorts = []
+	exposedGroups = []
 
 	for group in instance.get("SecurityGroups"):
 		groupId = group.get("GroupId")
 
-		try:
-			response = ec2_client.describe_security_groups(GroupIds=[groupId])
-			securityGroups = response.get("SecurityGroups")
+		if groupId in worldOpenGroups:
+			group = worldOpenGroups[groupId]
+			groupName = group.get("GroupName")
+			exposedGroups.append(f"{groupId} {groupName}")
 
-			for securityGroup in securityGroups:
-				for permission in securityGroup.get("IpPermissions"):
-					fromPort = permission.get("FromPort")
-					toPort = permission.get("ToPort")
-
-					for ipRange in permission.get("IpRanges"):
-						cidr = ipRange.get("CidrIp")
-
-						if cidr == "0.0.0.0/0":
-							internetExposed = True
-
-							if fromPort is not None and toPort is not None:
-								exposedPorts.append(f"{fromPort} - {toPort}")
-							else:
-								exposedPorts.append("all")
-
-		except ClientError as e:
-			print(f"[ERROR] Failed to retrieve EC2 instances: {e}")
-
-		except Exception as e:
-			print(f"[ERROR] Unexpected error while retrieving EC2 instances: {e}")
-
-	if internetExposed:
+	if exposedGroups:
 		findings.append(
 			{
 				"severity": "HIGH",
                 "resource": f"{instanceId} ({region})",
-                "issue": "Publicly accessible EC2 instance",
+                "issue": "Publicly accessible EC2 instance detected",
                 "details": (
-                    f"Instance has public IP {publicIp} and is reachable from the internet "
-                    f"(open ports: {', '.join(set(exposedPorts))})."
+                    f"Instance {instanceId} has public IP {publicIp} and is attached "
+                    f"to security group(s) open to the internet: {', '.join(exposedGroups)}."
                 ),
                 "remediation": (
-                    "Move instance to a private subnet or restrict inbound access "
-                    "to trusted IP ranges only."
+                    "Move the instance to a private subnet where possible, remove the public IP, "
+                    "or restrict inbound access to trusted IP ranges only."
                 ),
 			}
 		)
-
+	print (findings)
 	return findings
 
-def check_ebs_instance_encryption_status(ec2_client, instance, region):
+def check_ebs_instance_encryption_status(instance, region, allVolumes):
+	# find all ebs volumes unencrypted
+	
 	findings = []
 
 	instanceId = instance.get("InstanceId")
@@ -190,35 +135,54 @@ def check_ebs_instance_encryption_status(ec2_client, instance, region):
 		if not volumeId:
 			continue
 
-		try:
-			response = ec2_client.describe_volumes(VolumeIds = [volumeId])
-			volumes = response.get("Volumes")
-			if not volumes:
-				continue
+		volume = allVolumes.get(volumeId)
+		if not volume:
+			continue
 
-			encryptionStatus = volumes[0].get("Encrypted")
+		encryptionStatus = volume.get("Encrypted", False)
 
-			if encryptionStatus == False:
-				findings.append(
+		if encryptionStatus == False:
+			findings.append(
 				{
-					"severity": "MEDIUM",
-					"resource": f"{instanceId} ({region})",
-					"issue": "Unencrypted EBS volume attached to instanc",
-					"details": (
-						f"Instance {instanceId} has an attached EBS volume"
-						f"({volumeId}) that is not encrypted at rest."
-					),
-					"remediation": (
-						"Enable EBS encryption for volumes and snapshots, and enforce "
-						"encryption by default for new EBS volumes."
-					),
+					"severity": "HIGH",
+                    "resource": f"{instanceId} ({region})",
+                    "issue": "Unencrypted EBS volume attached to instance",
+                    "details": (
+                        f"Instance {instanceId} has an attached EBS volume "
+                        f"({volumeId}) that is not encrypted at rest."
+                    ),
+                    "remediation": (
+                        "Enable EBS encryption for volumes and snapshots, and enforce "
+                        "encryption by default for newly created EBS volumes."
+                    ),
 				}
 			)
-
-		except ClientError as e:
-			print(f"[ERROR] Failed to retrieve EC2 instances: {e}")
-
-		except Exception as e:
-			print(f"[ERROR] Unexpected error while retrieving EC2 instances: {e}")
 	
+	print (findings)
 	return findings
+
+def get_all_world_open_security_groups(ec2_client):
+	# Gets all the security groups that are open with 0.0.0.0/0
+	worldOpenGroups = {}
+
+	securityGroups =  get_all_security_groups(ec2_client)
+	for group in securityGroups.values():
+		groupId = group.get("GroupId")
+		isWorldOpen = False
+
+		for permission in group.get("IpPermissions", []):
+			ipProtocol = permission.get("IpProtocol")
+
+			if ipProtocol not in ["tcp", "udp", "-1"]:
+				continue
+
+			for ipRange in permission.get("IpRanges"):
+				if ipRange.get("CidrIp") == "0.0.0.0/0":
+					worldOpenGroups[groupId] = group
+					isWorldOpen = True
+					break
+
+			if isWorldOpen:
+				break
+
+	return worldOpenGroups

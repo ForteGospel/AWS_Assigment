@@ -3,11 +3,16 @@ import os
 import boto3
 
 from ec2_checks import (
-    get_all_regions,
-    get_all_instances,
     check_open_security_groups,
     check_public_instance_exposure,
-    check_ebs_instance_encryption_status
+    check_ebs_instance_encryption_status,
+    get_all_world_open_security_groups
+)
+
+from ec2_utils import(
+    get_all_regions,
+    get_all_instances,
+    get_all_volumes
 )
 
 def load_aws_credentials():
@@ -45,11 +50,13 @@ def run_checks(session):
         ec2_client = session.client("ec2", region_name=region)
         
         all_instances = get_all_instances(ec2_client)
+        worldOpenGroups = get_all_world_open_security_groups(ec2_client)
+        allVolumes = get_all_volumes(ec2_client)
 
         for instance in all_instances:
-            #check_open_security_groups(ec2_client, instance, region)
-            #check_public_instance_exposure(ec2_client, instance, region)
-            check_ebs_instance_encryption_status(ec2_client, instance, region)
+            #check_open_security_groups(instance, region, worldOpenGroups)
+            #check_public_instance_exposure(instance, region, worldOpenGroups)
+            check_ebs_instance_encryption_status(instance, region, allVolumes)
     
 
 def main():
