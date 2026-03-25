@@ -6,6 +6,7 @@ from ec2_checks import (
     check_open_security_groups,
     check_public_instance_exposure,
     check_ebs_instance_encryption_status,
+    check_imdsv1_enabled,
     get_all_world_open_security_groups
 )
 
@@ -44,6 +45,7 @@ def create_session(access_key, secret_key):
     )
 
 def run_checks(session):
+    findings = []
     all_regions = get_all_regions(session)
     
     for region in all_regions:
@@ -54,9 +56,12 @@ def run_checks(session):
         allVolumes = get_all_volumes(ec2_client)
 
         for instance in all_instances:
-            #check_open_security_groups(instance, region, worldOpenGroups)
-            #check_public_instance_exposure(instance, region, worldOpenGroups)
-            check_ebs_instance_encryption_status(instance, region, allVolumes)
+            findings.extend(check_open_security_groups(instance, region, worldOpenGroups))
+            findings.extend(check_public_instance_exposure(instance, region, worldOpenGroups))
+            findings.extend(check_ebs_instance_encryption_status(instance, region, allVolumes))
+            findings.extend(check_imdsv1_enabled(instance, region))
+
+    [print(x) for x in findings]
     
 
 def main():

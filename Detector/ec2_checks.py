@@ -56,9 +56,7 @@ def check_open_security_groups(instance, region, worldOpenGroups):
 				)
 				continue
 
-			print (fromPort)
 			for port, serviceName in HIGH_RISK_PORTS.items():
-				print (serviceName)
 				if fromPort <= port <= toPort:
 					findings.append(
 						{
@@ -159,6 +157,31 @@ def check_ebs_instance_encryption_status(instance, region, allVolumes):
 			)
 	
 	print (findings)
+	return findings
+
+def check_imdsv1_enabled(instance, region):
+	findings = []
+	instanceId = instance.get("InstanceId")
+	metadataOptions = instance.get("MetadataOptions")
+	httpTokens = metadataOptions.get("HttpTokens")
+
+	if httpTokens == "optional":
+		findings.append(
+			{
+				"severity": "MEDIUM",
+                "resource": f"{instanceId} ({region})",
+                "issue": "IMDSv1 is enabled",
+                "details": (
+                    f"Instance {instanceId} has MetadataOptions.HttpTokens set to "
+                    f"'optional', which means IMDSv2 is not enforced."
+                ),
+                "remediation": (
+                    "Require IMDSv2 by setting MetadataOptions.HttpTokens to 'required' "
+                    "to reduce the risk of SSRF-based credential theft."
+                ),
+			}
+		)
+
 	return findings
 
 def get_all_world_open_security_groups(ec2_client):
