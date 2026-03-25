@@ -160,3 +160,14 @@ Additionally, if the instance is used to create an AMI or snapshot, embedded sec
 - Rotate credentials regularly
 - Avoid storing secrets in AMIs, user data scripts, or configuration files
 - Use IAM roles for EC2 instead of static credentials whenever possible
+
+## References
+
+- AWS Security Hub – EC2 Exposure Findings  
+  https://docs.aws.amazon.com/securityhub/latest/userguide/exposure-ec2-instance.html  
+
+- Amazon EC2 Best Practices  
+  https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-best-practices.html  
+
+- Boto3 EC2 Documentation  
+  https://docs.aws.amazon.com/boto3/latest/reference/services/ec2.html  
