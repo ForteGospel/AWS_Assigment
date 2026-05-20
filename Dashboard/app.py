@@ -39,11 +39,21 @@ def resources():
 
     tab = request.args.get("tab", "instances")
     region = request.args.get("region") or None
+    account_id = request.args.get("account_id") or None
     has_issue = request.args.get("has_issue") or None
 
-    instances = db.list_instances(scan["id"], region=region, has_issue=has_issue) if tab == "instances" else []
-    security_groups = db.list_security_groups(scan["id"], region=region) if tab == "security_groups" else []
-    volumes = db.list_volumes(scan["id"], region=region) if tab == "volumes" else []
+    instances = (
+        db.list_instances(scan["id"], region=region, has_issue=has_issue, account_id=account_id)
+        if tab == "instances" else []
+    )
+    security_groups = (
+        db.list_security_groups(scan["id"], region=region, account_id=account_id)
+        if tab == "security_groups" else []
+    )
+    volumes = (
+        db.list_volumes(scan["id"], region=region, account_id=account_id)
+        if tab == "volumes" else []
+    )
 
     summary = db.scan_summary(scan["id"])
     return render_template(
@@ -51,11 +61,13 @@ def resources():
         scan=scan,
         tab=tab,
         region=region,
+        account_id=account_id,
         has_issue=has_issue,
         instances=instances,
         security_groups=security_groups,
         volumes=volumes,
         regions=summary["regions"],
+        accounts=summary["accounts"],
     )
 
 
@@ -78,6 +90,7 @@ def findings():
 
     severity = request.args.get("severity") or None
     region = request.args.get("region") or None
+    account_id = request.args.get("account_id") or None
     issue_substring = request.args.get("issue") or None
     summary = db.scan_summary(scan["id"])
 
@@ -86,6 +99,7 @@ def findings():
         severity=severity,
         region=region,
         issue_substring=issue_substring,
+        account_id=account_id,
     )
     return render_template(
         "findings.html",
@@ -93,8 +107,10 @@ def findings():
         findings=rows,
         severity=severity,
         region=region,
+        account_id=account_id,
         issue=issue_substring,
         regions=summary["regions"],
+        accounts=summary["accounts"],
     )
 
 

@@ -34,10 +34,15 @@ Identifies EC2 instances with attached EBS volumes that are not encrypted at res
 ## Requirements
 
 - Python 3.9+
-- `boto3` (`pip install boto3`)
+- `boto3` and `flask` (`pip install boto3 flask`)
 - AWS credentials with read access to EC2 (`ec2:DescribeRegions`, `ec2:DescribeInstances`, `ec2:DescribeSecurityGroups`, `ec2:DescribeVolumes`)
 
-## Usage
+## Components
+
+- **Detector/** — CLI tool that scans a single account and prints findings.
+- **Dashboard/** — Flask app (port 5001) that scans, persists results in SQLite, and provides a clickable inventory + findings UI. Supports multi-account scanning via either AWS SSO (recommended) or `sts:AssumeRole` into member accounts.
+
+## Usage — CLI (single account)
 
 Run from the `Detector/` directory. Credentials can be passed as CLI arguments or environment variables.
 
@@ -60,6 +65,26 @@ python main.py
 ```
 
 Findings are printed to stdout in the format shown under [Output Example](#output-example).
+
+## Usage — Dashboard
+
+```bash
+cd Dashboard
+python app.py
+```
+
+Open http://127.0.0.1:5001 and click **Run scan**.
+
+The dashboard picks the highest-priority credential source it finds at scan time:
+
+1. **AWS SSO cached token** (recommended for multi-account environments). Set it up once:
+   ```bash
+   aws configure sso       # prompts for SSO start URL + region, picks a default role
+   aws sso login           # browser auth, caches a token for ~8 hours
+   ```
+   On the next scan, the dashboard enumerates every account/role your SSO user is entitled to (`sso:ListAccounts` + `sso:ListAccountRoles`) and scans each one using short-lived per-account credentials from `sso:GetRoleCredentials`. No cross-account `sts:AssumeRole` permissions needed — entitlement is encoded in your SSO assignment.
+
+2. **`AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` (+ optional `AWS_SESSION_TOKEN`)** exported in the shell that launches Flask. If those creds belong to a role with `organizations:ListAccounts`, the dashboard tries `sts:AssumeRole` into each member account (defaults to `OrganizationAccountAccessRole`, override via `SCAN_ASSUME_ROLE`). Otherwise it scans only the current account.
 
 ## How It Works
 

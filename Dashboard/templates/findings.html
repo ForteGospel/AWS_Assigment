@@ -7,6 +7,14 @@
   <p>No scan data yet.</p>
 {% else %}
   <form method="get" class="filters">
+    <label>Account:
+      <select name="account_id" onchange="this.form.submit()">
+        <option value="">All</option>
+        {% for a in accounts %}
+          <option value="{{ a.account_id }}" {% if a.account_id == account_id %}selected{% endif %}>{{ a.account_id }}{% if a.account_name %} — {{ a.account_name }}{% endif %}</option>
+        {% endfor %}
+      </select>
+    </label>
     <label>Severity:
       <select name="severity" onchange="this.form.submit()">
         <option value="">All</option>
@@ -31,19 +39,20 @@
 
   <table>
     <thead>
-      <tr><th>Severity</th><th>Region</th><th>Resource</th><th>Issue</th><th>Details</th></tr>
+      <tr><th>Severity</th><th>Account</th><th>Region</th><th>Resource</th><th>Issue</th><th>Details</th></tr>
     </thead>
     <tbody>
       {% for f in findings %}
         <tr class="sev-{{ f.severity | lower }}">
           <td><span class="badge {{ 'bad' if f.severity == 'HIGH' else 'warn' }}">{{ f.severity }}</span></td>
+          <td>{{ f.account_id }}</td>
           <td>{{ f.region }}</td>
           <td><a href="{{ url_for('resource_detail', instance_id=f.resource_id) }}">{{ f.resource_id }}</a></td>
           <td>{{ f.issue }}</td>
           <td>{{ f.details }}</td>
         </tr>
       {% else %}
-        <tr><td colspan="5">No findings match the current filters.</td></tr>
+        <tr><td colspan="6">No findings match the current filters.</td></tr>
       {% endfor %}
     </tbody>
   </table>

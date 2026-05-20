@@ -7,11 +7,12 @@
   <h2>{{ instance_id }}</h2>
   <p>Instance not found in the latest scan.</p>
 {% else %}
-  <h2>{{ instance.instance_id }} <small>({{ instance.region }})</small></h2>
+  <h2>{{ instance.instance_id }} <small>({{ instance.account_id }} · {{ instance.region }})</small></h2>
 
   <section>
     <h3>Attributes</h3>
     <dl class="kv">
+      <dt>Account</dt><dd>{{ instance.account_id }}</dd>
       <dt>State</dt><dd>{{ instance.state or '—' }}</dd>
       <dt>Type</dt><dd>{{ instance.instance_type or '—' }}</dd>
       <dt>Public IP</dt><dd>{{ instance.public_ip or '—' }}</dd>

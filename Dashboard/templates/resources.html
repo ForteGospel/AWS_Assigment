@@ -14,6 +14,14 @@
 
   <form method="get" class="filters">
     <input type="hidden" name="tab" value="{{ tab }}">
+    <label>Account:
+      <select name="account_id" onchange="this.form.submit()">
+        <option value="">All</option>
+        {% for a in accounts %}
+          <option value="{{ a.account_id }}" {% if a.account_id == account_id %}selected{% endif %}>{{ a.account_id }}{% if a.account_name %} — {{ a.account_name }}{% endif %}</option>
+        {% endfor %}
+      </select>
+    </label>
     <label>Region:
       <select name="region" onchange="this.form.submit()">
         <option value="">All</option>
@@ -36,11 +44,12 @@
   {% if tab == 'instances' %}
     <table>
       <thead>
-        <tr><th>Instance ID</th><th>Region</th><th>State</th><th>Type</th><th>Public IP</th><th>IMDSv2</th><th>Issues</th></tr>
+        <tr><th>Account</th><th>Instance ID</th><th>Region</th><th>State</th><th>Type</th><th>Public IP</th><th>IMDSv2</th><th>Issues</th></tr>
       </thead>
       <tbody>
         {% for i in instances %}
           <tr>
+            <td>{{ i.account_id }}</td>
             <td><a href="{{ url_for('resource_detail', instance_id=i.instance_id) }}">{{ i.instance_id }}</a></td>
             <td>{{ i.region }}</td>
             <td>{{ i.state or '—' }}</td>
@@ -50,36 +59,38 @@
             <td>{% if i.issue_count > 0 %}<span class="badge bad">{{ i.issue_count }}</span>{% else %}<span class="badge ok">0</span>{% endif %}</td>
           </tr>
         {% else %}
-          <tr><td colspan="7">No instances match the current filters.</td></tr>
+          <tr><td colspan="8">No instances match the current filters.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   {% elif tab == 'security_groups' %}
     <table>
       <thead>
-        <tr><th>Group ID</th><th>Region</th><th>Name</th><th>World-open</th></tr>
+        <tr><th>Account</th><th>Group ID</th><th>Region</th><th>Name</th><th>World-open</th></tr>
       </thead>
       <tbody>
         {% for g in security_groups %}
           <tr>
+            <td>{{ g.account_id }}</td>
             <td>{{ g.group_id }}</td>
             <td>{{ g.region }}</td>
             <td>{{ g.group_name or '—' }}</td>
             <td>{% if g.is_world_open %}<span class="badge bad">yes</span>{% else %}<span class="badge ok">no</span>{% endif %}</td>
           </tr>
         {% else %}
-          <tr><td colspan="4">No security groups match the current filters.</td></tr>
+          <tr><td colspan="5">No security groups match the current filters.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   {% else %}
     <table>
       <thead>
-        <tr><th>Volume ID</th><th>Region</th><th>State</th><th>Size (GB)</th><th>Encrypted</th><th>Attached to</th></tr>
+        <tr><th>Account</th><th>Volume ID</th><th>Region</th><th>State</th><th>Size (GB)</th><th>Encrypted</th><th>Attached to</th></tr>
       </thead>
       <tbody>
         {% for v in volumes %}
           <tr>
+            <td>{{ v.account_id }}</td>
             <td>{{ v.volume_id }}</td>
             <td>{{ v.region }}</td>
             <td>{{ v.state or '—' }}</td>
@@ -88,7 +99,7 @@
             <td>{% if v.attached_instance_id %}<a href="{{ url_for('resource_detail', instance_id=v.attached_instance_id) }}">{{ v.attached_instance_id }}</a>{% else %}—{% endif %}</td>
           </tr>
         {% else %}
-          <tr><td colspan="6">No volumes match the current filters.</td></tr>
+          <tr><td colspan="7">No volumes match the current filters.</td></tr>
         {% endfor %}
       </tbody>
     </table>

@@ -8,6 +8,10 @@
 {% else %}
   <section class="cards">
     <div class="card">
+      <div class="metric">{{ summary.completed_account_count }}</div>
+      <div class="label">Accounts scanned{% if summary.failed_accounts %} <span class="badge bad">{{ summary.failed_accounts | length }} failed</span>{% endif %}</div>
+    </div>
+    <div class="card">
       <div class="metric">{{ summary.instance_count }}</div>
       <div class="label"><a href="{{ url_for('resources', tab='instances') }}">EC2 instances</a></div>
     </div>
@@ -23,6 +27,30 @@
       <div class="metric">{{ summary.regions | length }}</div>
       <div class="label">Regions scanned</div>
     </div>
+  </section>
+
+  <section>
+    <h3>Accounts</h3>
+    <table>
+      <thead><tr><th>Account ID</th><th>Name</th><th>Role</th><th>Status</th><th>Error</th></tr></thead>
+      <tbody>
+        {% for a in summary.accounts %}
+          <tr>
+            <td>{{ a.account_id }}</td>
+            <td>{{ a.account_name or '—' }}</td>
+            <td>{% if a.is_management %}<span class="badge ok">management</span>{% else %}member{% endif %}</td>
+            <td>
+              {% if a.status == 'completed' %}<span class="badge ok">completed</span>
+              {% elif a.status == 'failed' %}<span class="badge bad">failed</span>
+              {% else %}<span class="badge warn">{{ a.status }}</span>{% endif %}
+            </td>
+            <td>{{ a.error or '—' }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="5">No accounts recorded for this scan.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </section>
 
   <section>
