@@ -31,6 +31,32 @@ Detects instances that do not enforce IMDSv2:
 ### 4. Unencrypted EBS Volumes
 Identifies EC2 instances with attached EBS volumes that are not encrypted at rest.
 
+## Requirements
+
+- Python 3.9+
+- `boto3` (`pip install boto3`)
+- AWS credentials with read access to EC2 (`ec2:DescribeRegions`, `ec2:DescribeInstances`, `ec2:DescribeSecurityGroups`, `ec2:DescribeVolumes`)
+
+## Usage
+
+Run from the `Detector/` directory. Credentials can be passed as CLI arguments or environment variables.
+
+**Via CLI arguments:**
+```bash
+cd Detector
+python main.py clientid=AKIAxxxxxxxx secretid=yyyyyyyyyyyy
+```
+
+**Via environment variables:**
+```bash
+export AWS_ACCESS_KEY_ID=AKIAxxxxxxxx
+export AWS_SECRET_ACCESS_KEY=yyyyyyyyyyyy
+cd Detector
+python main.py
+```
+
+Findings are printed to stdout in the format shown under [Output Example](#output-example).
+
 ## How It Works
 
 1. Authenticate using AWS credentials
