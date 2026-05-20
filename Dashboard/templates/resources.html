@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Resources · AWS EC2 Dashboard{% endblock %}
+{% block content %}
+<h2>Resources</h2>
+
+{% if not scan %}
+  <p>No scan data yet.</p>
+{% else %}
+  <nav class="tabs">
+    <a href="{{ url_for('resources', tab='instances') }}" class="{{ 'active' if tab == 'instances' }}">Instances</a>
+    <a href="{{ url_for('resources', tab='security_groups') }}" class="{{ 'active' if tab == 'security_groups' }}">Security groups</a>
+    <a href="{{ url_for('resources', tab='volumes') }}" class="{{ 'active' if tab == 'volumes' }}">Volumes</a>
+  </nav>
+
+  <form method="get" class="filters">
+    <input type="hidden" name="tab" value="{{ tab }}">
+    <label>Region:
+      <select name="region" onchange="this.form.submit()">
+        <option value="">All</option>
+        {% for r in regions %}
+          <option value="{{ r }}" {% if r == region %}selected{% endif %}>{{ r }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    {% if tab == 'instances' %}
+      <label>Has issue:
+        <select name="has_issue" onchange="this.form.submit()">
+          <option value="">All</option>
+          <option value="yes" {% if has_issue == 'yes' %}selected{% endif %}>Yes</option>
+          <option value="no" {% if has_issue == 'no' %}selected{% endif %}>No</option>
+        </select>
+      </label>
+    {% endif %}
+  </form>
+
+  {% if tab == 'instances' %}
+    <table>
+      <thead>
+        <tr><th>Instance ID</th><th>Region</th><th>State</th><th>Type</th><th>Public IP</th><th>IMDSv2</th><th>Issues</th></tr>
+      </thead>
+      <tbody>
+        {% for i in instances %}
+          <tr>
+            <td><a href="{{ url_for('resource_detail', instance_id=i.instance_id) }}">{{ i.instance_id }}</a></td>
+            <td>{{ i.region }}</td>
+            <td>{{ i.state or '—' }}</td>
+            <td>{{ i.instance_type or '—' }}</td>
+            <td>{{ i.public_ip or '—' }}</td>
+            <td>{{ 'enforced' if i.metadata_http_tokens == 'required' else (i.metadata_http_tokens or '—') }}</td>
+            <td>{% if i.issue_count > 0 %}<span class="badge bad">{{ i.issue_count }}</span>{% else %}<span class="badge ok">0</span>{% endif %}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="7">No instances match the current filters.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% elif tab == 'security_groups' %}
+    <table>
+      <thead>
+        <tr><th>Group ID</th><th>Region</th><th>Name</th><th>World-open</th></tr>
+      </thead>
+      <tbody>
+        {% for g in security_groups %}
+          <tr>
+            <td>{{ g.group_id }}</td>
+            <td>{{ g.region }}</td>
+            <td>{{ g.group_name or '—' }}</td>
+            <td>{% if g.is_world_open %}<span class="badge bad">yes</span>{% else %}<span class="badge ok">no</span>{% endif %}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">No security groups match the current filters.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <table>
+      <thead>
+        <tr><th>Volume ID</th><th>Region</th><th>State</th><th>Size (GB)</th><th>Encrypted</th><th>Attached to</th></tr>
+      </thead>
+      <tbody>
+        {% for v in volumes %}
+          <tr>
+            <td>{{ v.volume_id }}</td>
+            <td>{{ v.region }}</td>
+            <td>{{ v.state or '—' }}</td>
+            <td>{{ v.size_gb or '—' }}</td>
+            <td>{% if v.encrypted %}<span class="badge ok">yes</span>{% else %}<span class="badge bad">no</span>{% endif %}</td>
+            <td>{% if v.attached_instance_id %}<a href="{{ url_for('resource_detail', instance_id=v.attached_instance_id) }}">{{ v.attached_instance_id }}</a>{% else %}—{% endif %}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6">No volumes match the current filters.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+{% endif %}
+{% endblock %}

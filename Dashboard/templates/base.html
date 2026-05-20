@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}AWS EC2 Dashboard{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header>
+    <h1><a href="{{ url_for('overview') }}">AWS EC2 Dashboard</a></h1>
+    <nav>
+      <a href="{{ url_for('overview') }}">Overview</a>
+      <a href="{{ url_for('resources') }}">Resources</a>
+      <a href="{{ url_for('findings') }}">Findings</a>
+    </nav>
+    <form method="post" action="{{ url_for('trigger_scan') }}" class="scan-form" onsubmit="document.getElementById('scan-btn').disabled=true; document.getElementById('scan-btn').textContent='Scanning…';">
+      <button id="scan-btn" type="submit">Run scan</button>
+    </form>
+  </header>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul class="flashes">
+        {% for category, msg in messages %}
+          <li class="flash flash-{{ category }}">{{ msg }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  {% if latest_scan %}
+    <div class="scan-info">Latest scan: #{{ latest_scan.id }} — finished {{ latest_scan.finished_at or '—' }} ({{ latest_scan.status }})</div>
+  {% else %}
+    <div class="scan-info warning">No scan yet. Click <strong>Run scan</strong> to populate the dashboard.</div>
+  {% endif %}
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

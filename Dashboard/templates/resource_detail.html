@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ instance.instance_id if instance else instance_id }} · AWS EC2 Dashboard{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('resources') }}">← Back to resources</a></p>
+
+{% if not instance %}
+  <h2>{{ instance_id }}</h2>
+  <p>Instance not found in the latest scan.</p>
+{% else %}
+  <h2>{{ instance.instance_id }} <small>({{ instance.region }})</small></h2>
+
+  <section>
+    <h3>Attributes</h3>
+    <dl class="kv">
+      <dt>State</dt><dd>{{ instance.state or '—' }}</dd>
+      <dt>Type</dt><dd>{{ instance.instance_type or '—' }}</dd>
+      <dt>Public IP</dt><dd>{{ instance.public_ip or '—' }}</dd>
+      <dt>Private IP</dt><dd>{{ instance.private_ip or '—' }}</dd>
+      <dt>IMDS HttpTokens</dt><dd>{{ instance.metadata_http_tokens or '—' }}</dd>
+    </dl>
+  </section>
+
+  <section>
+    <h3>Findings ({{ instance.findings | length }})</h3>
+    {% if instance.findings %}
+      <ul class="findings">
+        {% for f in instance.findings %}
+          <li class="finding sev-{{ f.severity | lower }}">
+            <div class="finding-head"><span class="badge {{ 'bad' if f.severity == 'HIGH' else 'warn' }}">{{ f.severity }}</span> {{ f.issue }}</div>
+            <div class="finding-body">{{ f.details }}</div>
+            <div class="finding-fix"><strong>Remediation:</strong> {{ f.remediation }}</div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>No findings against this instance.</p>
+    {% endif %}
+  </section>
+
+  <section>
+    <h3>Security groups ({{ instance.security_groups | length }})</h3>
+    <table>
+      <thead><tr><th>Group ID</th><th>Name</th><th>World-open</th></tr></thead>
+      <tbody>
+        {% for g in instance.security_groups %}
+          <tr>
+            <td>{{ g.group_id }}</td>
+            <td>{{ g.group_name or '—' }}</td>
+            <td>{% if g.is_world_open %}<span class="badge bad">yes</span>{% else %}<span class="badge ok">no</span>{% endif %}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="3">None.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h3>Attached EBS volumes ({{ instance.volumes | length }})</h3>
+    <table>
+      <thead><tr><th>Volume ID</th><th>Size (GB)</th><th>State</th><th>Encrypted</th></tr></thead>
+      <tbody>
+        {% for v in instance.volumes %}
+          <tr>
+            <td>{{ v.volume_id }}</td>
+            <td>{{ v.size_gb or '—' }}</td>
+            <td>{{ v.state or '—' }}</td>
+            <td>{% if v.encrypted %}<span class="badge ok">yes</span>{% else %}<span class="badge bad">no</span>{% endif %}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">None.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endif %}
+{% endblock %}

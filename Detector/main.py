@@ -1,20 +1,9 @@
 import sys
 import os
-import boto3
 
-from ec2_checks import (
-    check_open_security_groups,
-    check_public_instance_exposure,
-    check_ebs_instance_encryption_status,
-    check_imdsv1_enabled,
-    get_all_world_open_security_groups
-)
-
-from ec2_utils import(
+from ec2_utils import (
     create_session,
-    get_all_regions,
-    get_all_instances,
-    get_all_volumes
+    scan_account,
 )
 
 def load_aws_credentials():
@@ -45,21 +34,8 @@ def load_aws_credentials():
 
 def run_checks(session):
     findings = []
-    all_regions = get_all_regions(session)
-    
-    for region in all_regions:
-        ec2_client = session.client("ec2", region_name=region)
-        
-        all_instances = get_all_instances(ec2_client)
-        worldOpenGroups = get_all_world_open_security_groups(ec2_client)
-        allVolumes = get_all_volumes(ec2_client)
-
-        for instance in all_instances:
-            findings.extend(check_open_security_groups(instance, region, worldOpenGroups))
-            findings.extend(check_public_instance_exposure(instance, region, worldOpenGroups))
-            findings.extend(check_ebs_instance_encryption_status(instance, region, allVolumes))
-            findings.extend(check_imdsv1_enabled(instance, region))
-
+    for region_result in scan_account(session):
+        findings.extend(region_result["findings"])
     return findings
 
 def print_findings(findings):

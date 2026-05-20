@@ -1,0 +1,138 @@
+* { box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  margin: 0;
+  background: #f5f6f8;
+  color: #1f2933;
+}
+
+header {
+  background: #1f2933;
+  color: #fff;
+  padding: 0.75rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+header h1 { font-size: 1.1rem; margin: 0; }
+header h1 a { color: inherit; text-decoration: none; }
+header nav { display: flex; gap: 1rem; flex: 1; }
+header nav a { color: #cbd5e1; text-decoration: none; font-size: 0.95rem; }
+header nav a:hover { color: #fff; }
+
+.scan-form button {
+  background: #2563eb;
+  color: #fff;
+  border: 0;
+  padding: 0.45rem 1rem;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.scan-form button:disabled { opacity: 0.7; cursor: progress; }
+
+main { padding: 1.5rem; max-width: 1100px; margin: 0 auto; }
+
+.scan-info {
+  background: #e2e8f0;
+  padding: 0.5rem 1.5rem;
+  font-size: 0.85rem;
+}
+.scan-info.warning { background: #fde68a; }
+
+.flashes { list-style: none; padding: 0; margin: 0; }
+.flash { padding: 0.6rem 1.5rem; font-size: 0.9rem; }
+.flash-success { background: #d1fae5; color: #065f46; }
+.flash-error { background: #fee2e2; color: #991b1b; }
+
+.cards { display: flex; gap: 1rem; flex-wrap: wrap; }
+.card {
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  padding: 1.2rem 1.5rem;
+  flex: 1;
+  min-width: 160px;
+}
+.card .metric { font-size: 2.2rem; font-weight: 700; }
+.card .label { color: #4b5563; font-size: 0.9rem; }
+.card .label a { color: inherit; text-decoration: none; }
+.card .label a:hover { text-decoration: underline; }
+
+section { margin-top: 2rem; }
+section h3 { margin-bottom: 0.5rem; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  border-radius: 6px;
+  overflow: hidden;
+}
+th, td { padding: 0.55rem 0.75rem; text-align: left; border-bottom: 1px solid #e5e7eb; font-size: 0.9rem; }
+th { background: #f1f5f9; font-weight: 600; }
+tbody tr:hover { background: #f9fafb; }
+
+.tabs { display: flex; gap: 0.25rem; margin-bottom: 1rem; }
+.tabs a {
+  padding: 0.4rem 0.9rem;
+  background: #e5e7eb;
+  color: #1f2933;
+  text-decoration: none;
+  border-radius: 4px 4px 0 0;
+  font-size: 0.9rem;
+}
+.tabs a.active { background: #fff; border-bottom: 2px solid #2563eb; }
+
+.filters {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  background: #fff;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+.filters label { display: flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; }
+.filters select, .filters input { padding: 0.3rem 0.5rem; border: 1px solid #cbd5e1; border-radius: 4px; }
+
+.badge {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.badge.ok { background: #d1fae5; color: #065f46; }
+.badge.bad { background: #fee2e2; color: #991b1b; }
+.badge.warn { background: #fef3c7; color: #92400e; }
+
+.severity-list { list-style: none; padding: 0; display: flex; gap: 0.5rem; }
+.severity { padding: 0.3rem 0.8rem; border-radius: 4px; }
+.severity a { color: inherit; text-decoration: none; font-weight: 600; }
+.sev-high { background: #fee2e2; color: #991b1b; }
+.sev-medium { background: #fef3c7; color: #92400e; }
+.sev-low { background: #e0f2fe; color: #075985; }
+
+.findings { list-style: none; padding: 0; }
+.finding {
+  background: #fff;
+  padding: 0.8rem 1rem;
+  border-left: 4px solid #cbd5e1;
+  border-radius: 4px;
+  margin-bottom: 0.6rem;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+.finding.sev-high { border-left-color: #dc2626; }
+.finding.sev-medium { border-left-color: #d97706; }
+.finding-head { font-weight: 600; margin-bottom: 0.3rem; }
+.finding-body { font-size: 0.9rem; color: #374151; margin-bottom: 0.3rem; }
+.finding-fix { font-size: 0.85rem; color: #4b5563; }
+
+dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: 0.3rem 1rem; }
+dl.kv dt { font-weight: 600; color: #4b5563; }
+
+.regions { color: #4b5563; font-size: 0.9rem; }

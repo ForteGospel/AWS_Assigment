@@ -1,12 +1,3 @@
-import boto3
-from botocore.exceptions import ClientError
-
-from ec2_utils import(
-    get_all_instances,
-    get_all_security_groups,
-    get_all_volumes
-)
-
 HIGH_RISK_PORTS = {
     22: "SSH",
     3389: "RDP",
@@ -182,12 +173,11 @@ def check_imdsv1_enabled(instance, region):
 
     return findings
 
-def get_all_world_open_security_groups(ec2_client):
-    # Gets all the security groups that are open with 0.0.0.0/0
+def find_world_open_security_groups(security_groups):
+    # Filter the supplied SG dict down to groups open to 0.0.0.0/0
     worldOpenGroups = {}
 
-    securityGroups =  get_all_security_groups(ec2_client)
-    for group in securityGroups.values():
+    for group in security_groups.values():
         groupId = group.get("GroupId")
         isWorldOpen = False
 
@@ -207,3 +197,12 @@ def get_all_world_open_security_groups(ec2_client):
                 break
 
     return worldOpenGroups
+
+
+def run_checks_on_instance(instance, region, world_open_groups, all_volumes):
+    findings = []
+    findings.extend(check_open_security_groups(instance, region, world_open_groups))
+    findings.extend(check_public_instance_exposure(instance, region, world_open_groups))
+    findings.extend(check_ebs_instance_encryption_status(instance, region, all_volumes))
+    findings.extend(check_imdsv1_enabled(instance, region))
+    return findings

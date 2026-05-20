@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Findings · AWS EC2 Dashboard{% endblock %}
+{% block content %}
+<h2>Findings</h2>
+
+{% if not scan %}
+  <p>No scan data yet.</p>
+{% else %}
+  <form method="get" class="filters">
+    <label>Severity:
+      <select name="severity" onchange="this.form.submit()">
+        <option value="">All</option>
+        {% for s in ['HIGH', 'MEDIUM', 'LOW'] %}
+          <option value="{{ s }}" {% if s == severity %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Region:
+      <select name="region" onchange="this.form.submit()">
+        <option value="">All</option>
+        {% for r in regions %}
+          <option value="{{ r }}" {% if r == region %}selected{% endif %}>{{ r }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Issue contains:
+      <input type="text" name="issue" value="{{ issue or '' }}">
+      <button type="submit">Filter</button>
+    </label>
+  </form>
+
+  <table>
+    <thead>
+      <tr><th>Severity</th><th>Region</th><th>Resource</th><th>Issue</th><th>Details</th></tr>
+    </thead>
+    <tbody>
+      {% for f in findings %}
+        <tr class="sev-{{ f.severity | lower }}">
+          <td><span class="badge {{ 'bad' if f.severity == 'HIGH' else 'warn' }}">{{ f.severity }}</span></td>
+          <td>{{ f.region }}</td>
+          <td><a href="{{ url_for('resource_detail', instance_id=f.resource_id) }}">{{ f.resource_id }}</a></td>
+          <td>{{ f.issue }}</td>
+          <td>{{ f.details }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="5">No findings match the current filters.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endif %}
+{% endblock %}

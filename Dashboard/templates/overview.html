@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Overview · AWS EC2 Dashboard{% endblock %}
+{% block content %}
+<h2>Overview</h2>
+
+{% if not scan %}
+  <p>No data yet — run a scan to populate the dashboard.</p>
+{% else %}
+  <section class="cards">
+    <div class="card">
+      <div class="metric">{{ summary.instance_count }}</div>
+      <div class="label"><a href="{{ url_for('resources', tab='instances') }}">EC2 instances</a></div>
+    </div>
+    <div class="card">
+      <div class="metric">{{ summary.security_group_count }}</div>
+      <div class="label"><a href="{{ url_for('resources', tab='security_groups') }}">Security groups</a></div>
+    </div>
+    <div class="card">
+      <div class="metric">{{ summary.volume_count }}</div>
+      <div class="label"><a href="{{ url_for('resources', tab='volumes') }}">EBS volumes</a></div>
+    </div>
+    <div class="card">
+      <div class="metric">{{ summary.regions | length }}</div>
+      <div class="label">Regions scanned</div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Findings by severity</h3>
+    {% if summary.findings_by_severity %}
+      <ul class="severity-list">
+        {% for sev in ['HIGH', 'MEDIUM', 'LOW'] %}
+          {% set count = summary.findings_by_severity.get(sev, 0) %}
+          {% if count > 0 %}
+            <li class="severity sev-{{ sev | lower }}">
+              <a href="{{ url_for('findings', severity=sev) }}">{{ sev }}: {{ count }}</a>
+            </li>
+          {% endif %}
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>No findings.</p>
+    {% endif %}
+  </section>
+
+  <section>
+    <h3>Regions scanned</h3>
+    <p class="regions">{{ summary.regions | join(', ') }}</p>
+  </section>
+{% endif %}
+{% endblock %}
