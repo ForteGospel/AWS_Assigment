@@ -1,4 +1,5 @@
 import boto3
+from botocore.exceptions import ClientError
 
 def create_session(access_key, secret_key):
     return boto3.Session(
@@ -7,73 +8,73 @@ def create_session(access_key, secret_key):
     )
 
 def get_all_regions(session):
-	# Get all enabled regions in the account #
-	ec2 = session.client("ec2", region_name = "eu-north-1")
+    # Get all enabled regions in the account #
+    ec2 = session.client("ec2", region_name = "eu-north-1")
 
-	response = ec2.describe_regions(AllRegions = False)
+    response = ec2.describe_regions(AllRegions = False)
 
-	regions = [region["RegionName"] for region in response.get("Regions")]
+    regions = [region["RegionName"] for region in response.get("Regions")]
 
-	return regions
-	
+    return regions
+    
 def get_all_instances(ec2_client):
-	# Get All Instances in region
-	instances = []
+    # Get All Instances in region
+    instances = []
 
-	try:
-		paginator = ec2_client.get_paginator("describe_instances")
+    try:
+        paginator = ec2_client.get_paginator("describe_instances")
 
-		for page in paginator.paginate():
-			for reservation in page.get("Reservations"):
-				for instance in reservation.get("Instances"):
-					instances.append(instance)
+        for page in paginator.paginate():
+            for reservation in page.get("Reservations"):
+                for instance in reservation.get("Instances"):
+                    instances.append(instance)
 
-	except ClientError as e:
-		print(f"[ERROR] Failed to retrieve EC2 instances: {e}")
+    except ClientError as e:
+        print(f"[ERROR] Failed to retrieve EC2 instances: {e}")
 
-	except Exception as e:
-		print(f"[ERROR] Unexpected error while retrieving EC2 instances: {e}")
+    except Exception as e:
+        print(f"[ERROR] Unexpected error while retrieving EC2 instances: {e}")
 
-	return instances
+    return instances
 
 def get_all_security_groups(ec2_client):
-	# Get All Security Groups in region
+    # Get All Security Groups in region
 
-	securityGroups = {}
-	try:
-		paginator = ec2_client.get_paginator("describe_security_groups")
+    securityGroups = {}
+    try:
+        paginator = ec2_client.get_paginator("describe_security_groups")
 
-		for page in paginator.paginate():
-			for group in page.get("SecurityGroups"):
-				groupId = group.get("GroupId")
-				if groupId:
-					securityGroups[groupId] = group
+        for page in paginator.paginate():
+            for group in page.get("SecurityGroups"):
+                groupId = group.get("GroupId")
+                if groupId:
+                    securityGroups[groupId] = group
 
-	except ClientError as e:
-		print(f"[ERROR] Failed to retrieve security groups: {e}")
-	except Exception as e:
-		print(f"[ERROR] Unexpected error while retrieving security groups: {e}")
+    except ClientError as e:
+        print(f"[ERROR] Failed to retrieve security groups: {e}")
+    except Exception as e:
+        print(f"[ERROR] Unexpected error while retrieving security groups: {e}")
 
-	return securityGroups
+    return securityGroups
 
 def get_all_volumes(ec2_client):
-	# Get all EBS Volumes in region
+    # Get all EBS Volumes in region
 
-	volumes = {}
+    volumes = {}
 
-	try:
-		paginator = ec2_client.get_paginator("describe_volumes")
+    try:
+        paginator = ec2_client.get_paginator("describe_volumes")
 
-		for page in paginator.paginate():
-			for volume in page.get("Volumes"):
-				volumeId = volume.get("VolumeId")
-				if volumeId:
-					volumes[volumeId] = volume
+        for page in paginator.paginate():
+            for volume in page.get("Volumes"):
+                volumeId = volume.get("VolumeId")
+                if volumeId:
+                    volumes[volumeId] = volume
 
-	except ClientError as e:
-		print(f"[ERROR] Failed to retrieve EBS volumes: {e}")
-	except ClientError as e:
-		print(f"[ERROR] Unexpected error while retrieving EBS volumes: {e}")
-	
-	return volumes
-	
+    except ClientError as e:
+        print(f"[ERROR] Failed to retrieve EBS volumes: {e}")
+    except Exception as e:
+        print(f"[ERROR] Unexpected error while retrieving EBS volumes: {e}")
+    
+    return volumes
+    

@@ -60,11 +60,11 @@ def run_checks(session):
 
 def print_findings(findings):
     for find in findings:
-        print(f"Severity: {find["severity"]}")
-        print(f"Resource: {find["resource"]}")
-        print(f"Issue: {find["issue"]}")
-        print(f"Details: {find["details"]}")
-        print(f"Remediation: {find["remediation"]}")
+        print(f"Severity: {find['severity']}")
+        print(f"Resource: {find['resource']}")
+        print(f"Issue: {find['issue']}")
+        print(f"Details: {find['details']}")
+        print(f"Remediation: {find['remediation']}")
         print("---------------------------------------------------------\n\n")
     
 
