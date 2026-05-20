@@ -234,9 +234,10 @@ def insert_region_result(scan_id, account_id, region_result):
 
 
 def latest_scan():
+    """Most recent scan of any status — so in-progress scans surface in the UI."""
     with connect() as conn:
         row = conn.execute(
-            "SELECT * FROM scans WHERE status = 'completed' ORDER BY id DESC LIMIT 1"
+            "SELECT * FROM scans ORDER BY id DESC LIMIT 1"
         ).fetchone()
         return dict(row) if row else None
 

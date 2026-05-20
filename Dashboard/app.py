@@ -1,3 +1,4 @@
+import threading
 import traceback
 from flask import Flask, redirect, render_template, request, url_for, flash
 
@@ -20,14 +21,28 @@ def overview():
     return render_template("overview.html", scan=scan, summary=summary)
 
 
+def _run_scan_background():
+    try:
+        scanner.run_scan()
+    except Exception:
+        traceback.print_exc()
+
+
 @app.post("/scan")
 def trigger_scan():
+    existing = db.latest_scan()
+    if existing and existing.get("status") == "running":
+        flash(f"Scan #{existing['id']} is already running.", "error")
+        return redirect(url_for("overview"))
+
     try:
-        scan_id = scanner.run_scan()
-        flash(f"Scan #{scan_id} completed.", "success")
-    except Exception as exc:
-        traceback.print_exc()
-        flash(f"Scan failed: {exc}", "error")
+        scanner.load_aws_credentials_from_env(required=scanner.find_sso_token() is None)
+    except RuntimeError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("overview"))
+
+    threading.Thread(target=_run_scan_background, daemon=True).start()
+    flash("Scan started — page auto-refreshes while it runs.", "success")
     return redirect(url_for("overview"))
 
 

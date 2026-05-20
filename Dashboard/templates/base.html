@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  {% if latest_scan and latest_scan.status == 'running' %}
+    <meta http-equiv="refresh" content="10">
+  {% endif %}
   <title>{% block title %}AWS EC2 Dashboard{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
@@ -28,10 +31,12 @@
     {% endif %}
   {% endwith %}
 
-  {% if latest_scan %}
-    <div class="scan-info">Latest scan: #{{ latest_scan.id }} — finished {{ latest_scan.finished_at or '—' }} ({{ latest_scan.status }})</div>
-  {% else %}
+  {% if not latest_scan %}
     <div class="scan-info warning">No scan yet. Click <strong>Run scan</strong> to populate the dashboard.</div>
+  {% elif latest_scan.status == 'running' %}
+    <div class="scan-info warning">Scan #{{ latest_scan.id }} in progress (started {{ latest_scan.started_at }}). Page auto-refreshes every 10s while running.</div>
+  {% else %}
+    <div class="scan-info">Latest scan: #{{ latest_scan.id }} — {{ latest_scan.status }} ({{ latest_scan.finished_at or '—' }})</div>
   {% endif %}
 
   <main>

@@ -1,7 +1,7 @@
 import glob
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import boto3
 from botocore.exceptions import ClientError
@@ -130,8 +130,66 @@ def get_current_account_id(session):
         return None
 
 
+def _token_view(data):
+    return {
+        "access_token": data["accessToken"],
+        "region": data.get("region") or "us-east-1",
+        "expires_at": datetime.fromisoformat(data["expiresAt"].replace("Z", "+00:00")),
+        "start_url": data.get("startUrl"),
+    }
+
+
+def _refresh_sso_token(path, data):
+    """Use sso-oidc:CreateToken with grant_type=refresh_token to mint a new access token."""
+    refresh_token = data.get("refreshToken")
+    client_id = data.get("clientId")
+    client_secret = data.get("clientSecret")
+    region = data.get("region")
+    if not (refresh_token and client_id and client_secret and region):
+        return None
+
+    try:
+        oidc = boto3.client("sso-oidc", region_name=region)
+        response = oidc.create_token(
+            clientId=client_id,
+            clientSecret=client_secret,
+            grantType="refresh_token",
+            refreshToken=refresh_token,
+        )
+    except (ClientError, Exception):
+        return None
+
+    new_access_token = response.get("accessToken")
+    expires_in = response.get("expiresIn")
+    if not new_access_token or not expires_in:
+        return None
+
+    new_expires_at = datetime.now(timezone.utc) + timedelta(seconds=int(expires_in))
+
+    data["accessToken"] = new_access_token
+    data["expiresAt"] = new_expires_at.isoformat(timespec="seconds").replace("+00:00", "Z")
+    new_refresh = response.get("refreshToken")
+    if new_refresh:
+        data["refreshToken"] = new_refresh
+
+    try:
+        tmp = path + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(data, f)
+        os.chmod(tmp, 0o600)
+        os.replace(tmp, path)
+    except OSError:
+        pass  # in-memory token still usable for this run
+
+    return _token_view(data)
+
+
 def find_sso_token():
-    """Return the freshest non-expired SSO access token from ~/.aws/sso/cache, or None."""
+    """Return the freshest usable SSO access token from ~/.aws/sso/cache, or None.
+
+    Tokens within their access-token TTL are returned directly. An expired token
+    that still has a valid refresh_token is silently refreshed via sso-oidc.
+    """
     if not os.path.isdir(SSO_CACHE_DIR):
         return None
 
@@ -142,32 +200,30 @@ def find_sso_token():
                 data = json.load(f)
         except (OSError, json.JSONDecodeError):
             continue
-
-        token = data.get("accessToken")
-        expires_at = data.get("expiresAt")
-        if not token or not expires_at:
+        if not data.get("accessToken") or not data.get("expiresAt"):
             continue
-
         try:
-            expiry = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+            expiry = datetime.fromisoformat(data["expiresAt"].replace("Z", "+00:00"))
         except ValueError:
             continue
-
-        if expiry <= datetime.now(timezone.utc):
-            continue
-
-        candidates.append({
-            "access_token": token,
-            "region": data.get("region") or "us-east-1",
-            "expires_at": expiry,
-            "start_url": data.get("startUrl"),
-        })
+        candidates.append((path, data, expiry))
 
     if not candidates:
         return None
 
-    candidates.sort(key=lambda c: c["expires_at"], reverse=True)
-    return candidates[0]
+    candidates.sort(key=lambda c: c[2], reverse=True)
+    now = datetime.now(timezone.utc)
+
+    # Walk from freshest to oldest. Return the first one that's still valid, or
+    # refresh the first one whose refresh token still works.
+    for path, data, expiry in candidates:
+        if expiry > now:
+            return _token_view(data)
+        refreshed = _refresh_sso_token(path, data)
+        if refreshed is not None:
+            return refreshed
+
+    return None
 
 
 def _role_priority(role_name):
@@ -257,14 +313,14 @@ def assume_role_session(base_session, account_id, role_name, session_name="ec2-d
 
 
 def scan_organization(session, assume_role_name=DEFAULT_ASSUME_ROLE, sso_token=None):
-    """Scan every account the caller can reach.
+    """Yield one per-account result at a time as scans complete.
 
     Resolution order:
       1. If sso_token is provided (or auto-discovered), enumerate via SSO and scan each.
       2. Else try organizations:ListAccounts + sts:AssumeRole into member accounts.
       3. Else scan only the current account.
 
-    Returns a list of per-account dicts:
+    Each yielded dict has shape:
         {
             "account_id": str,
             "account_name": str | None,
@@ -280,90 +336,84 @@ def scan_organization(session, assume_role_name=DEFAULT_ASSUME_ROLE, sso_token=N
     current_account_id = get_current_account_id(session)
 
     if sso_token is not None:
-        return _scan_via_sso(session, sso_token, current_account_id)
+        yield from _scan_via_sso(session, sso_token, current_account_id)
+        return
 
     org_accounts = discover_accounts(session)
-    results = []
 
     if org_accounts is None:
-        results.append(_scan_one_account(session, current_account_id, account_name=None, is_management=True))
-        return results
+        yield _scan_one_account(session, current_account_id, account_name=None, is_management=True)
+        return
 
     for acct in org_accounts:
         account_id = acct["Id"]
         account_name = acct.get("Name")
         if acct.get("Status") and acct["Status"] != "ACTIVE":
-            results.append({
+            yield {
                 "account_id": account_id,
                 "account_name": account_name,
                 "is_management": account_id == current_account_id,
                 "status": "skipped",
                 "error": f"Account status is {acct['Status']}",
                 "regions": [],
-            })
+            }
             continue
 
         if account_id == current_account_id:
-            results.append(_scan_one_account(session, account_id, account_name, is_management=True))
+            yield _scan_one_account(session, account_id, account_name, is_management=True)
             continue
 
         try:
             assumed = assume_role_session(session, account_id, assume_role_name)
         except ClientError as e:
-            results.append({
+            yield {
                 "account_id": account_id,
                 "account_name": account_name,
                 "is_management": False,
                 "status": "failed",
                 "error": f"AssumeRole into {assume_role_name} failed: {e.response.get('Error', {}).get('Code', 'Unknown')}",
                 "regions": [],
-            })
+            }
             continue
 
-        results.append(_scan_one_account(assumed, account_id, account_name, is_management=False))
-
-    return results
+        yield _scan_one_account(assumed, account_id, account_name, is_management=False)
 
 
 def _scan_via_sso(base_session, sso_token, current_account_id):
     try:
         sso_entries = discover_sso_accounts(base_session, sso_token)
     except ClientError as e:
-        # If the token is bad, fall back to single-account behavior signalled via an empty list
-        # and a marker entry — easier to debug than swallowing silently.
-        return [{
+        yield {
             "account_id": current_account_id or "unknown",
             "account_name": None,
             "is_management": True,
             "status": "failed",
             "error": f"SSO ListAccounts failed: {e.response.get('Error', {}).get('Code', 'Unknown')}",
             "regions": [],
-        }]
+        }
+        return
 
-    results = []
     for entry in sso_entries:
         account_id = entry["account_id"]
         try:
             account_session = sso_session_for(base_session, sso_token, account_id, entry["role_name"])
         except ClientError as e:
-            results.append({
+            yield {
                 "account_id": account_id,
                 "account_name": entry["account_name"],
                 "is_management": account_id == current_account_id,
                 "status": "failed",
                 "error": f"SSO GetRoleCredentials failed (role {entry['role_name']}): {e.response.get('Error', {}).get('Code', 'Unknown')}",
                 "regions": [],
-            })
+            }
             continue
 
-        results.append(_scan_one_account(
+        yield _scan_one_account(
             account_session,
             account_id,
             entry["account_name"],
             is_management=(account_id == current_account_id),
-        ))
-
-    return results
+        )
 
 
 def _scan_one_account(session, account_id, account_name, is_management):
