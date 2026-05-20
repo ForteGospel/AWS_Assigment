@@ -45,12 +45,16 @@ Run from the `Detector/` directory. Credentials can be passed as CLI arguments o
 ```bash
 cd Detector
 python main.py clientid=AKIAxxxxxxxx secretid=yyyyyyyyyyyy
+# For temporary (SSO/STS) credentials, also pass:
+#   sessiontoken=zzzzzzzz
 ```
 
 **Via environment variables:**
 ```bash
 export AWS_ACCESS_KEY_ID=AKIAxxxxxxxx
 export AWS_SECRET_ACCESS_KEY=yyyyyyyyyyyy
+# For temporary (SSO/STS) credentials, also export:
+# export AWS_SESSION_TOKEN=zzzzzzzz
 cd Detector
 python main.py
 ```

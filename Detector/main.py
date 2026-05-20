@@ -20,24 +20,28 @@ from ec2_utils import(
 def load_aws_credentials():
     access_key = None
     secret_key = None
+    session_token = None
 
     for arg in sys.argv[1:]:
         if arg.startswith("clientid="):
             access_key = arg.split("=", 1)[1]
         elif arg.startswith("secretid="):
             secret_key = arg.split("=", 1)[1]
+        elif arg.startswith("sessiontoken="):
+            session_token = arg.split("=", 1)[1]
 
     access_key = access_key or os.getenv("AWS_ACCESS_KEY_ID")
     secret_key = secret_key or os.getenv("AWS_SECRET_ACCESS_KEY")
+    session_token = session_token or os.getenv("AWS_SESSION_TOKEN")
 
     if not access_key or not secret_key:
         raise ValueError(
             "AWS credentials not provided.\n"
-            "Usage: python main.py clientid=XXX secretid=YYY\n"
-            "Or set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables."
+            "Usage: python main.py clientid=XXX secretid=YYY [sessiontoken=ZZZ]\n"
+            "Or set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY (and AWS_SESSION_TOKEN for temporary credentials) environment variables."
         )
 
-    return access_key, secret_key
+    return access_key, secret_key, session_token
 
 def run_checks(session):
     findings = []
@@ -70,8 +74,8 @@ def print_findings(findings):
 
 def main():
     try:
-        access_key, secret_key = load_aws_credentials()
-        session = create_session(access_key, secret_key)
+        access_key, secret_key, session_token = load_aws_credentials()
+        session = create_session(access_key, secret_key, session_token)
 
         findings = run_checks(session)
         print_findings(findings)

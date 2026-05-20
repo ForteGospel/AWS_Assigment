@@ -1,10 +1,11 @@
 import boto3
 from botocore.exceptions import ClientError
 
-def create_session(access_key, secret_key):
+def create_session(access_key, secret_key, session_token=None):
     return boto3.Session(
         aws_access_key_id=access_key,
         aws_secret_access_key=secret_key,
+        aws_session_token=session_token,
     )
 
 def get_all_regions(session):
